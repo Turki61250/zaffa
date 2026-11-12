@@ -427,7 +427,7 @@ header.page{min-height:100vh;min-height:100svh}
 </style>
 </head>
 <body>
-<div class="err" id="err" hidden><div><p style="font-family:'Aref Ruqaa',serif;font-size:30px;margin:0;color:#A4505E">عذراً</p><p id="errMsg" style="margin:8px 0 0;font-size:15px"></p></div></div>
+<div class="err" id="err" hidden><div><p style="font-family:'Aref Ruqaa',serif;font-size:30px;margin:0;color:#A4505E">عذراً</p><p id="errMsg" style="margin:8px 0 0;font-size:16px;white-space:pre-line;line-height:1.8"></p></div></div>
 <div class="app" id="app">
 <div class="bgimg" aria-hidden="true"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="foil" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="70" y2="70"><stop offset="0" stop-color="#9E7C3C"/><stop offset=".35" stop-color="#E6CF97"/><stop offset=".55" stop-color="#B8954F"/><stop offset=".8" stop-color="#E0C58A"/><stop offset="1" stop-color="#9A7738"/></linearGradient></defs></svg>
@@ -542,6 +542,9 @@ const AR=Zaffa.AR;
 const $=id=>document.getElementById(id);
 const TOKEN=new URLSearchParams(location.search).get('t')||(Zaffa.DEMO?'demo':'');
 let G=null, comp=0, MAX=0, busy=false;
+const DEV=(()=>{let d='';try{d=localStorage.getItem('zf_dev')||''}catch(e){}
+  if(!d){d=Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b=>b.toString(16).padStart(2,'0')).join('');try{localStorage.setItem('zf_dev',d)}catch(e){}}
+  return d})();
 
 /* opening */
 $('openBtn').onclick=()=>{
@@ -551,6 +554,7 @@ $('openBtn').onclick=()=>{
   setTimeout(()=>{$('gate').classList.add('gone');},1900);
 };
 
+function lockedView(){fail('هذه الدعوة مفتوحة على جهاز آخر.\nالدعوة شخصية لصاحبتها، وإذا غيّرتِ جوالك تواصلي مع أهل الحفل.');}
 function setName(n){document.querySelectorAll('.gname').forEach(e=>e.textContent=n);}
 function fail(msg){$('err').hidden=false;$('errMsg').textContent=msg;}
 
@@ -569,7 +573,7 @@ function render(){
 }
 async function respond(attend){
   if(busy)return;busy=true;$('yes').disabled=$('no').disabled=true;
-  try{const r=await Zaffa.rpc('invite_respond',{p_token:TOKEN,p_attend:attend,p_companions:comp});if(r)G=r;render();}
+  try{const r=await Zaffa.rpc('invite_respond',{p_token:TOKEN,p_attend:attend,p_companions:comp,p_device:DEV});if(r&&r.locked){lockedView();return}if(r)G=r;render();}
   catch(e){alert('ما قدرنا نحفظ ردك، تأكدي من الإنترنت وحاولي مرة ثانية');}
   finally{busy=false;$('yes').disabled=$('no').disabled=false;}
 }
@@ -595,8 +599,9 @@ function stopQR(){clearInterval(arcT);}
 (async()=>{
   if(!TOKEN){fail('الرابط غير مكتمل. تأكدي إنك فتحتي الرابط كامل من رسالة الدعوة.');return;}
   try{
-    G=await Zaffa.rpc('invite_get',{p_token:TOKEN});
+    G=await Zaffa.rpc('invite_get',{p_token:TOKEN,p_device:DEV});
     if(!G){fail('هذا الرابط غير صحيح أو انحذفت الدعوة.');return;}
+    if(G.locked){lockedView();return;}
     setName(G.name);MAX=G.max||0;comp=G.companions||0;
     $('stepRow').style.display=MAX>0?'':'none';
     $('maxLbl').textContent=AR(MAX);

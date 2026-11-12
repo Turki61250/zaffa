@@ -187,12 +187,13 @@ function render(){
         <span class="tag t-${g.status}">${lbl[g.status]}${g.status==='accepted'?' · '+AR(1+g.companions):''}</span>
         ${g.checked_in_at?'<span class="tag t-in">حضرت</span>':''}
         ${g.sent_at?'<span class="tag t-sent">أُرسلت</span>':''}
+        ${g.locked?'<span class="tag t-sent">🔒 مقفلة على جوالها</span>':''}
         <div class="meta">${g.phone?AR(g.phone):'بدون جوال'} · مرافقين حتى ${AR(g.max)}</div></div>
       <div class="acts">
         <button class="btn sm wa" data-a="wa" ${g.phone?'':'disabled'}>واتساب</button>
         <button class="btn ghost sm" data-a="copy">نسخ الرابط</button>
-        <button class="btn ghost sm" data-a="open">فتح</button>
         <button class="btn ghost sm" data-a="edit">تعديل</button>
+        ${g.locked?'<button class="btn ghost sm" data-a="unlock">فك القفل</button>':''}
         ${g.status!=='pending'||g.checked_in_at?'<button class="btn ghost sm" data-a="reset">تصفير</button>':''}
         <button class="btn ghost sm" data-a="del" style="color:var(--pink);border-color:var(--pink2)">حذف</button>
       </div>
@@ -213,7 +214,7 @@ $('list').onclick=async e=>{
     await call('admin_mark_sent',{p_id:g.id});refresh();
   }
   if(a==='copy')copy(linkOf(g));
-  if(a==='open')window.open(linkOf(g),'_blank');
+  if(a==='unlock'&&confirm('فك قفل دعوة '+g.name+'؟ أول جوال يفتحها بعدين يصير هو صاحبها.')){await call('admin_unlock',{p_id:g.id});refresh();toast('انفك القفل')}
   if(a==='edit'){editing=g;$('eName').value=g.name;$('ePhone').value=g.phone||'';$('eMax').value=g.max;$('edDlg').showModal()}
   if(a==='reset'&&confirm('ترجع دعوة '+g.name+' بدون رد وبدون حضور؟')){await call('admin_reset',{p_id:g.id});refresh()}
   if(a==='del'&&confirm('حذف '+g.name+'؟ رابطها بيتعطل.')){await call('admin_delete',{p_id:g.id});refresh()}

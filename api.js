@@ -45,20 +45,26 @@
       { name: 'ريم الشمري', phone: '0503334444', max: 0 }
     ].map((g, i) => ({ id: 'g' + i, ...g, token: i === 0 ? 'demo' : rnd(9), secret: rnd(16), status: 'pending', companions: 0, responded_at: null, sent_at: null, checked_in_at: null }))
   };
-  const pub = g => ({ id: g.id, name: g.name, phone: g.phone, max: g.max, token: g.token, status: g.status, companions: g.companions, responded_at: g.responded_at, sent_at: g.sent_at, checked_in_at: g.checked_in_at });
+  const pub = g => ({ id: g.id, name: g.name, phone: g.phone, max: g.max, token: g.token, status: g.status, companions: g.companions, responded_at: g.responded_at, sent_at: g.sent_at, checked_in_at: g.checked_in_at, locked: !!g.device });
   const auth = p => { if (p.p_password !== demo.password) throw new Error('unauthorized'); };
-  const inv = g => g ? { name: g.name, max: g.max, status: g.status, companions: g.companions, checked_in: !!g.checked_in_at, secret: g.status === 'accepted' ? g.secret : null } : null;
+  const inv = (g, d) => {
+    if (!g) return null;
+    if (g.device && g.device !== d) return { name: g.name, locked: true };
+    return { name: g.name, max: g.max, status: g.status, companions: g.companions, checked_in: !!g.checked_in_at, locked: false, secret: g.status === 'accepted' && g.device === d ? g.secret : null };
+  };
   const byToken = t => demo.guests.find(g => g.token === t);
   const now = () => new Date().toISOString();
 
   async function demoRpc(fn, a) {
     await new Promise(r => setTimeout(r, 150));
     switch (fn) {
-      case 'invite_get': return inv(byToken(a.p_token));
+      case 'invite_get': { const g = byToken(a.p_token); if (g && !g.device && g.status !== 'pending' && a.p_device) g.device = a.p_device; return inv(g, a.p_device); }
       case 'invite_respond': {
         const g = byToken(a.p_token); if (!g) return null;
-        if (!g.checked_in_at) { g.status = a.p_attend ? 'accepted' : 'declined'; g.companions = a.p_attend ? Math.max(0, Math.min(a.p_companions || 0, g.max)) : 0; g.responded_at = now(); }
-        return inv(g);
+        if (!a.p_device) throw new Error('no_device');
+        if (g.device && g.device !== a.p_device) return { name: g.name, locked: true };
+        if (!g.checked_in_at) { g.device = a.p_device; g.status = a.p_attend ? 'accepted' : 'declined'; g.companions = a.p_attend ? Math.max(0, Math.min(a.p_companions || 0, g.max)) : 0; g.responded_at = now(); }
+        return inv(g, a.p_device);
       }
       case 'scan_check': {
         if (a.p_scan_key !== demo.scan_key) return { result: 'bad_key' };
@@ -84,7 +90,8 @@
       case 'admin_update': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) { g.name = a.p_name; g.phone = a.p_phone || null; g.max = Math.max(0, Math.min(20, +a.p_max || 0)); g.companions = Math.min(g.companions, g.max); } return null; }
       case 'admin_delete': auth(a); demo.guests = demo.guests.filter(x => x.id !== a.p_id); return null;
       case 'admin_mark_sent': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.sent_at = now(); return null; }
-      case 'admin_reset': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) Object.assign(g, { status: 'pending', companions: 0, responded_at: null, checked_in_at: null }); return null; }
+      case 'admin_unlock': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.device = null; return null; }
+      case 'admin_reset': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) Object.assign(g, { status: 'pending', companions: 0, responded_at: null, checked_in_at: null, device: null }); return null; }
     }
     throw new Error('unknown function ' + fn);
   }
