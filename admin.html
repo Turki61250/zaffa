@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>لوحة التحكم — زفّة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Aref+Ruqaa&display=swap" rel="stylesheet">
+<style>
+:root{--olive:#3B4632;--olive2:#5E6B4E;--pink:#A4505E;--pink2:#E9C6C9;--cream:#FBF8F0;--line:#E6DFCF;--muted:#857C6B;--ok:#4C7A4F;--no:#A4505E;--wait:#B08A3E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--olive);font-family:'Scheherazade New',serif;font-size:17px}
+button,input,textarea,select{font:inherit;color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:16px 14px 90px}
+h1{font-family:'Aref Ruqaa',serif;color:var(--pink);font-weight:400;font-size:30px;margin:4px 0 2px}
+.sub{color:var(--muted);margin:0 0 14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.btn{border:1px solid var(--olive);background:var(--olive);color:#fff;border-radius:999px;padding:7px 16px;cursor:pointer;line-height:1.4}
+.btn.ghost{background:#fff;color:var(--olive)}
+.btn.pink{background:var(--pink);border-color:var(--pink)}
+.btn.sm{padding:4px 11px;font-size:15px}
+.btn:disabled{opacity:.5}
+input,textarea,select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;width:100%}
+textarea{resize:vertical}
+label{display:block;font-size:15px;color:var(--muted);margin:6px 0 3px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 auto}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center}
+.stat b{display:block;font-size:26px;line-height:1.2}
+.stat span{font-size:14px;color:var(--muted)}
+@media(max-width:620px){.stats{grid-template-columns:repeat(3,1fr)}}
+.tabs{display:flex;gap:6px;margin:4px 0 10px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 13px;cursor:pointer;font-size:15px}
+.tabs button.on{background:var(--olive);color:#fff;border-color:var(--olive)}
+.g{border-top:1px solid var(--line);padding:10px 2px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.g:first-child{border-top:0}
+.g .who{flex:1 1 200px;min-width:0}
+.g .who b{font-size:18px}
+.g .meta{font-size:14px;color:var(--muted)}
+.tag{display:inline-block;font-size:13px;border-radius:999px;padding:1px 9px;margin-inline-start:4px;vertical-align:middle}
+.t-pending{background:#F5EEDC;color:var(--wait)}.t-accepted{background:#E3EEDF;color:var(--ok)}.t-declined{background:#F6E3E5;color:var(--no)}.t-in{background:var(--olive);color:#fff}.t-sent{background:#EEF0EA;color:var(--olive2)}
+.g .acts{display:flex;gap:5px;flex-wrap:wrap}
+.wa{background:#25D366;border-color:#25D366}
+#login{max-width:360px;margin:12vh auto 0;text-align:center}
+.hide{display:none!important}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--olive);color:#fff;padding:8px 18px;border-radius:999px;opacity:0;transition:.3s;pointer-events:none;z-index:50}
+.toast.show{opacity:1}
+.demo{background:#FFF4D6;border:1px dashed var(--wait);color:#7a5d1d;border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:15px}
+details summary{cursor:pointer;font-weight:700}
+.hint{font-size:14px;color:var(--muted)}
+dialog{border:0;border-radius:16px;padding:16px;max-width:360px;width:92vw}
+dialog::backdrop{background:rgba(0,0,0,.3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="demoNote" class="demo hide">وضع تجربة: البيانات وهمية وتنمسح إذا حدّثت الصفحة. كلمة المرور: <b>demo</b></div>
+
+  <!-- login -->
+  <div id="login" class="card">
+    <h1>زفّة</h1>
+    <p class="sub">لوحة تحكم الدعوات</p>
+    <input id="pw" type="password" placeholder="كلمة المرور" autocomplete="current-password">
+    <button class="btn" id="loginBtn" style="margin-top:10px;width:100%">دخول</button>
+    <p id="loginErr" class="hint" style="color:var(--pink)"></p>
+  </div>
+
+  <!-- dashboard -->
+  <div id="dash" class="hide">
+    <div class="row" style="justify-content:space-between">
+      <div style="flex:0 1 auto"><h1 id="title">—</h1><p class="sub">لوحة التحكم</p></div>
+      <div style="flex:0 0 auto" class="row">
+        <button class="btn ghost sm" id="copyScan">نسخ رابط الماسح</button>
+        <button class="btn ghost sm" id="logout">خروج</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <details class="card" id="addBox">
+      <summary>+ إضافة مدعوين</summary>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:2 1 180px"><label>الاسم</label><input id="aName" placeholder="مثال: نورة الدوسري"></div>
+        <div style="flex:2 1 150px"><label>الجوال</label><input id="aPhone" inputmode="tel" placeholder="05xxxxxxxx"></div>
+        <div style="flex:1 1 80px"><label>المرافقين</label><input id="aMax" type="number" min="0" max="20" value="0"></div>
+      </div>
+      <button class="btn" id="addOne" style="margin-top:10px">إضافة</button>
+      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+      <label>أو الصق قائمة (كل سطر: الاسم، الجوال، عدد المرافقين)</label>
+      <textarea id="bulk" rows="4" placeholder="نورة الدوسري، 0551234567، 2&#10;هيا القحطاني، 0569876543، 1"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="addBulk" style="flex:0 0 auto">إضافة القائمة</button>
+        <label class="btn ghost" style="flex:0 0 auto;margin:0;color:var(--olive)">رفع ملف Excel<input id="xls" type="file" accept=".xlsx,.xls,.csv" hidden></label>
+      </div>
+      <p class="hint">ملف Excel: العمود الأول الاسم، الثاني الجوال، الثالث عدد المرافقين.</p>
+    </details>
+
+    <details class="card">
+      <summary>نص رسالة الواتساب</summary>
+      <textarea id="msg" rows="6" style="margin-top:8px"></textarea>
+      <p class="hint">استخدم {الاسم} و {الرابط} وتنحط تلقائياً لكل مدعوة.</p>
+      <button class="btn ghost sm" id="msgReset">رجّع النص الأصلي</button>
+    </details>
+
+    <div class="card">
+      <div class="row">
+        <input id="q" placeholder="بحث بالاسم أو الجوال" style="flex:1 1 200px">
+      </div>
+      <div class="tabs" id="tabs">
+        <button data-f="all" class="on">الكل</button>
+        <button data-f="unsent">ما أُرسلت</button>
+        <button data-f="pending">بانتظار الرد</button>
+        <button data-f="accepted">قبلوا</button>
+        <button data-f="declined">اعتذروا</button>
+        <button data-f="in">حضروا</button>
+      </div>
+      <div id="list"></div>
+    </div>
+  </div>
+</div>
+
+<dialog id="edDlg">
+  <h3 style="margin:0 0 6px">تعديل المدعوة</h3>
+  <label>الاسم</label><input id="eName">
+  <label>الجوال</label><input id="ePhone" inputmode="tel">
+  <label>المرافقين المسموح</label><input id="eMax" type="number" min="0" max="20">
+  <div class="row" style="margin-top:12px">
+    <button class="btn" id="eSave">حفظ</button>
+    <button class="btn ghost" id="eCancel">إلغاء</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+const $=id=>document.getElementById(id), AR=Zaffa.AR, SLUG=Zaffa.slug;
+let PW=sessionStorage.getItem('zf_pw')||'', DATA=null, FILTER='all';
+const DEFAULT_MSG='السلام عليكم ورحمة الله\n{الاسم}\nيسعدنا دعوتكم لحضور حفل زفاف مدى و خالد\nيوم الثلاثاء ٢٩ ديسمبر ٢٠٢٦م في قاعات جوهرة ديلان – الرياض\n\nالدعوة شخصية، نرجو تأكيد الحضور أو الاعتذار من الرابط:\n{الرابط}';
+const MSG_KEY='zf_msg_'+SLUG;
+$('msg').value=localStorage.getItem(MSG_KEY)||DEFAULT_MSG;
+$('msg').oninput=()=>localStorage.setItem(MSG_KEY,$('msg').value);
+$('msgReset').onclick=()=>{$('msg').value=DEFAULT_MSG;localStorage.removeItem(MSG_KEY)};
+if(Zaffa.DEMO)$('demoNote').classList.remove('hide');
+
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),1800)}
+const base=()=>location.origin+location.pathname.replace(/[^/]*$/,'');
+const linkOf=g=>base()+'?t='+g.token;
+const call=(fn,extra)=>Zaffa.rpc(fn,Object.assign({p_slug:SLUG,p_password:PW},extra||{}));
+async function copy(t){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}toast('تم النسخ')}
+
+/* login */
+async function login(){
+  $('loginErr').textContent='';
+  try{DATA=await call('admin_list');sessionStorage.setItem('zf_pw',PW);$('login').classList.add('hide');$('dash').classList.remove('hide');render();}
+  catch(e){sessionStorage.removeItem('zf_pw');$('login').classList.remove('hide');$('dash').classList.add('hide');
+    $('loginErr').textContent=/unauthorized/.test(e.message)?'كلمة المرور غلط':'تعذّر الاتصال: '+e.message;}
+}
+$('loginBtn').onclick=()=>{PW=$('pw').value.trim();login()};
+$('pw').onkeydown=e=>{if(e.key==='Enter')$('loginBtn').click()};
+$('logout').onclick=()=>{sessionStorage.removeItem('zf_pw');location.reload()};
+async function refresh(){try{DATA=await call('admin_list');render()}catch(e){}}
+
+/* render */
+function render(){
+  $('title').textContent=DATA.title;
+  const G=DATA.guests, acc=G.filter(g=>g.status==='accepted');
+  const ppl=acc.reduce((s,g)=>s+1+g.companions,0), inside=G.filter(g=>g.checked_in_at).reduce((s,g)=>s+1+g.companions,0);
+  const st=[[G.length,'المدعوين'],[G.filter(g=>g.sent_at).length,'أُرسلت'],[AR(acc.length)+' <small style="font-size:14px">('+AR(ppl)+' شخص)</small>','قبلوا'],[G.filter(g=>g.status==='declined').length,'اعتذروا'],[inside,'حضروا']];
+  $('stats').innerHTML=st.map(([n,l])=>`<div class="stat"><b>${typeof n==='number'?AR(n):n}</b><span>${l}</span></div>`).join('');
+  const q=$('q').value.trim();
+  const list=G.filter(g=>{
+    if(q&&!(g.name.includes(q)||(g.phone||'').includes(q)))return false;
+    if(FILTER==='unsent')return !g.sent_at;
+    if(FILTER==='in')return !!g.checked_in_at;
+    if(FILTER!=='all')return g.status===FILTER;
+    return true;
+  });
+  const lbl={pending:'بانتظار الرد',accepted:'قبلت',declined:'اعتذرت'};
+  $('list').innerHTML=list.length?list.map(g=>`
+    <div class="g" data-id="${g.id}">
+      <div class="who"><b>${esc(g.name)}</b>
+        <span class="tag t-${g.status}">${lbl[g.status]}${g.status==='accepted'?' · '+AR(1+g.companions):''}</span>
+        ${g.checked_in_at?'<span class="tag t-in">حضرت</span>':''}
+        ${g.sent_at?'<span class="tag t-sent">أُرسلت</span>':''}
+        <div class="meta">${g.phone?AR(g.phone):'بدون جوال'} · مرافقين حتى ${AR(g.max)}</div></div>
+      <div class="acts">
+        <button class="btn sm wa" data-a="wa" ${g.phone?'':'disabled'}>واتساب</button>
+        <button class="btn ghost sm" data-a="copy">نسخ الرابط</button>
+        <button class="btn ghost sm" data-a="open">فتح</button>
+        <button class="btn ghost sm" data-a="edit">تعديل</button>
+        ${g.status!=='pending'||g.checked_in_at?'<button class="btn ghost sm" data-a="reset">تصفير</button>':''}
+        <button class="btn ghost sm" data-a="del" style="color:var(--pink);border-color:var(--pink2)">حذف</button>
+      </div>
+    </div>`).join(''):'<p class="hint" style="text-align:center">ما فيه أحد هنا</p>';
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+$('q').oninput=render;
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;FILTER=b.dataset.f;[...$('tabs').children].forEach(x=>x.classList.toggle('on',x===b));render()};
+
+/* row actions */
+let editing=null;
+$('list').onclick=async e=>{
+  const b=e.target.closest('button[data-a]');if(!b)return;
+  const g=DATA.guests.find(x=>x.id===b.closest('.g').dataset.id);const a=b.dataset.a;
+  if(a==='wa'){
+    const text=$('msg').value.replaceAll('{الاسم}',g.name).replaceAll('{الرابط}',linkOf(g));
+    window.open('https://wa.me/'+Zaffa.phoneIntl(g.phone)+'?text='+encodeURIComponent(text),'_blank');
+    await call('admin_mark_sent',{p_id:g.id});refresh();
+  }
+  if(a==='copy')copy(linkOf(g));
+  if(a==='open')window.open(linkOf(g),'_blank');
+  if(a==='edit'){editing=g;$('eName').value=g.name;$('ePhone').value=g.phone||'';$('eMax').value=g.max;$('edDlg').showModal()}
+  if(a==='reset'&&confirm('ترجع دعوة '+g.name+' بدون رد وبدون حضور؟')){await call('admin_reset',{p_id:g.id});refresh()}
+  if(a==='del'&&confirm('حذف '+g.name+'؟ رابطها بيتعطل.')){await call('admin_delete',{p_id:g.id});refresh()}
+};
+$('eCancel').onclick=()=>$('edDlg').close();
+$('eSave').onclick=async()=>{
+  if(!$('eName').value.trim())return;
+  await call('admin_update',{p_id:editing.id,p_name:$('eName').value.trim(),p_phone:$('ePhone').value.trim(),p_max:+$('eMax').value||0});
+  $('edDlg').close();refresh();toast('تم الحفظ');
+};
+
+/* adding */
+async function addMany(rows){
+  rows=rows.filter(r=>r.name);if(!rows.length){toast('ما فيه أسماء');return}
+  try{const n=await call('admin_add',{p_guests:rows});toast('تمت إضافة '+AR(n));refresh()}catch(e){alert('ما انضافوا: '+e.message)}
+}
+const toEn=s=>String(s==null?'':s).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+$('addOne').onclick=async()=>{await addMany([{name:$('aName').value.trim(),phone:toEn($('aPhone').value).trim(),max:+toEn($('aMax').value)||0}]);$('aName').value='';$('aPhone').value='';$('aMax').value=0;$('aName').focus()};
+$('addBulk').onclick=async()=>{
+  const rows=$('bulk').value.split('\n').map(l=>l.split(/[,،\t]/).map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0],phone:toEn(p[1]||''),max:+toEn(p[2]||0)||0}));
+  await addMany(rows);$('bulk').value='';
+};
+$('xls').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const wb=XLSX.read(await f.arrayBuffer());const sh=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+  let rows=aoa.map(r=>({name:String(r[0]).trim(),phone:toEn(r[1]).replace(/\s/g,''),max:+toEn(r[2])||0})).filter(r=>r.name);
+  if(rows.length&&/اسم|name/i.test(rows[0].name))rows.shift();
+  if(confirm('بنضيف '+AR(rows.length)+' مدعوة من الملف، متأكد؟'))await addMany(rows);
+  e.target.value='';
+};
+$('copyScan').onclick=()=>copy(base()+'scan.html?k='+DATA.scan_key);
+
+if(PW)login();
+setInterval(()=>{if(DATA&&!document.hidden&&!$('edDlg').open)refresh()},15000);
+</script>
+</body>
+</html>

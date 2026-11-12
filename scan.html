@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>ماسح الدخول — زفّة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Aref+Ruqaa&display=swap" rel="stylesheet">
+<style>
+:root{--olive:#3B4632;--pink:#A4505E;--cream:#FBF8F0;--line:#E6DFCF;--muted:#857C6B}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--cream);color:var(--olive);font-family:'Scheherazade New',serif}
+.wrap{max-width:480px;margin:0 auto;padding:12px 14px 20px;min-height:100%;display:flex;flex-direction:column}
+h1{font-family:'Aref Ruqaa',serif;color:var(--pink);font-weight:400;font-size:26px;margin:0;text-align:center}
+.counts{display:flex;gap:8px;margin:10px 0}
+.counts div{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;text-align:center;padding:6px}
+.counts b{display:block;font-size:28px;line-height:1.2}
+.counts span{font-size:14px;color:var(--muted)}
+#reader{width:100%;border-radius:18px;overflow:hidden;background:#222;aspect-ratio:1/1}
+#reader video{object-fit:cover}
+.btn{border:1px solid var(--olive);background:var(--olive);color:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:18px;cursor:pointer;width:100%;margin-top:10px}
+.res{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:30px;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.res.show{opacity:1;pointer-events:auto}
+.res .ic{font-size:96px;line-height:1}
+.res .t{font-size:38px;font-weight:700;margin:8px 0 2px}
+.res .n{font-size:30px}
+.res .s{font-size:20px;opacity:.9;margin-top:6px}
+.r-ok{background:#3E7B4A}.r-used{background:#B5651D}.r-bad{background:#A33A45}.r-exp{background:#7A6A2E}
+.err{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center;margin-top:30px}
+.hint{color:var(--muted);font-size:14px;text-align:center;margin:8px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">ماسح الدخول</h1>
+  <div id="main">
+    <div class="counts"><div><b id="inside">–</b><span>دخلوا</span></div><div><b id="expected">–</b><span>المتوقع</span></div></div>
+    <div id="reader"></div>
+    <button class="btn" id="startBtn">تشغيل الكاميرا</button>
+    <p class="hint">وجّه الكاميرا على باركود الضيفة. الباركود يتغيّر كل ٣٠ ثانية، فلا تقبل صورة أو سكرين شوت.</p>
+  </div>
+</div>
+<div class="res" id="res"><div class="ic" id="rIc"></div><div class="t" id="rT"></div><div class="n" id="rN"></div><div class="s" id="rS"></div></div>
+
+<script src="vendor/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+const $=id=>document.getElementById(id),AR=Zaffa.AR;
+const KEY=new URLSearchParams(location.search).get('k')||(Zaffa.DEMO?'demo-scan':'');
+let busy=false,lastCode='',lastAt=0,cam=null;
+
+async function stats(){
+  try{const s=await Zaffa.rpc('scan_stats',{p_scan_key:KEY});if(!s)return bad();$('title').textContent=s.title;$('inside').textContent=AR(s.inside);$('expected').textContent=AR(s.expected)}catch(e){}
+}
+function bad(){$('main').innerHTML='<div class="err">رابط الماسح غير صحيح.<br>انسخيه من لوحة التحكم ← «نسخ رابط الماسح».</div>'}
+
+function show(cls,ic,t,n,s){
+  const r=$('res');r.className='res show '+cls;$('rIc').textContent=ic;$('rT').textContent=t;$('rN').textContent=n||'';$('rS').textContent=s||'';
+  if(navigator.vibrate)navigator.vibrate(cls==='r-ok'?120:[80,60,80,60,80]);
+  setTimeout(()=>{r.className='res';busy=false},cls==='r-ok'?1800:2600);
+}
+const hhmm=iso=>{try{return AR(new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}))}catch(e){return''}};
+
+async function onCode(text){
+  const now=Date.now();
+  if(busy||(text===lastCode&&now-lastAt<4000))return;
+  busy=true;lastCode=text;lastAt=now;
+  try{
+    const r=await Zaffa.rpc('scan_check',{p_scan_key:KEY,p_payload:text});
+    switch(r&&r.result){
+      case 'ok':show('r-ok','✓','تفضّلي',r.name,'العدد: '+AR(r.people)+(r.people>1?' أشخاص':' شخص'));break;
+      case 'used':show('r-used','!','دخلت قبل',r.name,'الساعة '+hhmm(r.at));break;
+      case 'expired':show('r-exp','⟳','باركود قديم',r.name,'اطلبي منها تفتح الرابط من جوالها');break;
+      case 'not_accepted':show('r-bad','✕','ما أكّدت الحضور',r.name,'');break;
+      case 'bad_key':show('r-bad','✕','رابط الماسح غلط','','');break;
+      default:show('r-bad','✕','باركود غير صالح','','');
+    }
+  }catch(e){show('r-bad','✕','ما فيه اتصال','','تأكدي من الإنترنت')}
+  stats();
+}
+
+$('startBtn').onclick=async()=>{
+  if(cam)return;
+  cam=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE]});
+  try{await cam.start({facingMode:'environment'},{fps:10,qrbox:(w,h)=>{const s=Math.floor(Math.min(w,h)*.75);return{width:s,height:s}}},onCode);$('startBtn').style.display='none'}
+  catch(e){cam=null;alert('ما قدرنا نشغّل الكاميرا. اسمحي للمتصفح باستخدامها وحاولي مرة ثانية.')}
+};
+window.zaffaScan=onCode; // for testing
+if(!KEY)bad();else{stats();setInterval(stats,10000)}
+</script>
+</body>
+</html>
