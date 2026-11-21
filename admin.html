@@ -181,6 +181,7 @@ dialog h3{margin:0 0 4px}
       <button data-v="guests">المدعوين</button>
       <button data-v="add">إضافة مدعوين</button>
       <button data-v="msg">رسالة الواتساب</button>
+      <button data-v="settings">الإعدادات</button>
     </div>
 
     <!-- overview -->
@@ -240,6 +241,19 @@ dialog h3{margin:0 0 4px}
           <label class="btn ghost" style="margin:0;color:var(--ink)">رفع ملف Excel<input id="xls" type="file" accept=".xlsx,.xls,.csv" hidden></label>
         </div>
         <p class="hint">ملف Excel: العمود الأول الاسم، الثاني الجوال، الثالث عدد المرافقين.</p>
+      </div>
+    </section>
+
+    <!-- settings -->
+    <section class="section" id="v-settings">
+      <div class="card">
+        <h3>آخر موعد لتعديل الرد <span class="pill p-wait" id="dlState"></span></h3>
+        <p class="hint" style="margin-top:-6px">بعد هالتاريخ اللي قبل أو اعتذر ما يقدر يغيّر رده. اللي ما ردّ للحين يقدر يرد عادي. (للأهلين كلهم)</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="dlDate" type="date" style="max-width:220px">
+          <button class="btn" id="dlSave">حفظ</button>
+          <button class="btn ghost" id="dlClear">بدون موعد</button>
+        </div>
       </div>
     </section>
 
@@ -327,6 +341,7 @@ const svg=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 /* render */
 function render(){
   $('title').textContent=DATA.title;
+  renderDeadline();
   ['bride','groom'].forEach(s=>$('cnt-'+s).textContent=N(DATA.guests.filter(g=>sideOf(g)===s).length));
   const G=DATA.guests.filter(g=>sideOf(g)===SIDE);
   const acc=G.filter(g=>g.status==='accepted'), dec=G.filter(g=>g.status==='declined'), pen=G.filter(g=>g.status==='pending');
@@ -433,6 +448,18 @@ $('xls').onchange=async e=>{
   if(confirm('بنضيف '+N(rows.length)+' مدعو من الملف إلى '+SIDES[SIDE]+'، متأكد؟'))await addMany(rows);
   e.target.value='';
 };
+/* change deadline */
+function renderDeadline(){
+  const dl=DATA.change_deadline;
+  if(document.activeElement!==$('dlDate'))$('dlDate').value=dl?new Date(dl).toLocaleDateString('en-CA',{timeZone:'Asia/Riyadh'}):'';
+  const open=!dl||Date.now()<=Date.parse(dl);
+  $('dlState').textContent=!dl?'مفتوح بدون موعد':open?'مفتوح حتى '+new Date(dl).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Asia/Riyadh'}):'مقفل';
+  $('dlState').className='pill '+(open?'p-ok':'p-no');
+}
+$('dlSave').onclick=async()=>{const v=$('dlDate').value;if(!v){toast('اختر تاريخ');return}
+  try{await call('admin_set_deadline',{p_deadline:v+'T23:59:59+03:00'});toast('تم الحفظ');refresh()}catch(e){alert('ما انحفظ: '+e.message)}};
+$('dlClear').onclick=async()=>{if(!confirm('تخلي تعديل الرد مفتوح بدون موعد؟'))return;
+  try{await call('admin_set_deadline',{p_deadline:null});toast('تم');refresh()}catch(e){alert('ما انحفظ: '+e.message)}};
 $('copyScan').onclick=()=>copy(base()+'scan.html?k='+DATA.scan_key);
 
 if(PW)login();

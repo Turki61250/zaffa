@@ -481,6 +481,9 @@ header.page{min-height:100vh;min-height:100svh}
 /* full card (roses frame included) */
 .hero-card{width:min(92vw,440px)!important;margin:0 auto}
 .invimg{border-radius:0!important;box-shadow:none!important;filter:drop-shadow(0 16px 24px rgba(20,25,15,.45))!important}
+/* change deadline note */
+.dlnote{margin:6px 0 0;font-size:12.5px;color:#8A8676;font-family:'IBM Plex Sans Arabic',sans-serif}
+.dlnote:empty{display:none}
 </style>
 </head>
 <body>
@@ -536,12 +539,14 @@ header.page{min-height:100vh;min-height:100svh}
           <span>يتجدّد الرمز كل ٣٠ ثانية، ولا يعمل من صورة شاشة</span>
         </div>
         <button class="pill" id="edit" style="margin-top:8px;height:42px;font-size:15px">تعديل الرد</button>
+        <p class="dlnote" id="dl1"></p>
       </div>
 
       <div class="declined" id="declined">
         <div class="guest">نشكركم على لطفكم</div>
         <p style="margin:6px 0 14px;font-size:14px;color:var(--muted)">وصل اعتذاركم لأهل المناسبة، جمعنا الله وإياكم على الخير</p>
         <button class="pill" id="edit2" style="height:42px;font-size:15px">تعديل الرد</button>
+        <p class="dlnote" id="dl2"></p>
       </div>
     </div>
     </div></div>
@@ -596,14 +601,17 @@ function fail(msg){$('err').hidden=false;$('errMsg').textContent=msg;}
 function syncStep(){$('comp').textContent=AR(comp);$('minus').disabled=comp<=0;$('plus').disabled=comp>=MAX;}
 $('plus').onclick=()=>{comp=Math.min(MAX,comp+1);syncStep()};
 $('minus').onclick=()=>{comp=Math.max(0,comp-1);syncStep()};
+const canChange=()=>G.can_change!==false;
 function render(){
   $('form').style.display='none';$('pass').classList.remove('show');$('declined').classList.remove('show');stopQR();
   if(G.status==='accepted'){
     $('people').textContent=AR(1+G.companions)+(G.companions?' أشخاص':' شخص');
     $('pass').classList.add('show');startQR();
-    $('edit').hidden=!!G.checked_in;
-  }else if(G.status==='declined'){$('declined').classList.add('show');}
+    $('edit').hidden=!!G.checked_in||!canChange();
+  }else if(G.status==='declined'){$('declined').classList.add('show');$('edit2').hidden=!canChange();}
   else{$('form').style.display='';}
+  const t=G.checked_in?'':!canChange()?'انتهى وقت تعديل الرد':(G.deadline?'تقدر تعدّل ردك حتى '+new Date(G.deadline).toLocaleDateString('ar-SA-u-nu-latn-ca-gregory',{weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Riyadh'}):'');
+  $('dl1').textContent=t;$('dl2').textContent=t;
 }
 async function respond(attend){
   if(busy)return;busy=true;$('yes').disabled=$('no').disabled=true;

@@ -38,7 +38,7 @@
   // ---------- DEMO store (in memory, same behaviour as the database) ----------
   const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n))).map(b => b.toString(16).padStart(2, '0')).join('');
   const demo = {
-    title: 'زفاف خالد ومدى', scan_key: 'demo-scan', password: 'demo',
+    title: 'زفاف خالد ومدى', scan_key: 'demo-scan', password: 'demo', change_deadline: '2026-12-20T20:59:59Z',
     guests: [
       { name: 'نورة الدوسري', phone: '0551234567', max: 2 },
       { name: 'هيا القحطاني', phone: '0569876543', max: 1 },
@@ -50,7 +50,8 @@
   const inv = (g, d) => {
     if (!g) return null;
     if (g.device && g.device !== d) return { name: g.name, locked: true, side: g.side };
-    return { name: g.name, side: g.side, max: g.max, status: g.status, companions: g.companions, checked_in: !!g.checked_in_at, locked: false, secret: g.status === 'accepted' && g.device === d ? g.secret : null };
+    const cc = !demo.change_deadline || Date.now() <= Date.parse(demo.change_deadline);
+    return { name: g.name, side: g.side, deadline: demo.change_deadline, can_change: cc, max: g.max, status: g.status, companions: g.companions, checked_in: !!g.checked_in_at, locked: false, secret: g.status === 'accepted' && g.device === d ? g.secret : null };
   };
   const byToken = t => demo.guests.find(g => g.token === t);
   const now = () => new Date().toISOString();
@@ -63,6 +64,7 @@
         const g = byToken(a.p_token); if (!g) return null;
         if (!a.p_device) throw new Error('no_device');
         if (g.device && g.device !== a.p_device) return { name: g.name, locked: true };
+        if (g.status !== 'pending' && demo.change_deadline && Date.now() > Date.parse(demo.change_deadline)) return inv(g, a.p_device);
         if (!g.checked_in_at) { g.device = a.p_device; g.status = a.p_attend ? 'accepted' : 'declined'; g.companions = a.p_attend ? Math.max(0, Math.min(a.p_companions || 0, g.max)) : 0; g.responded_at = now(); }
         return inv(g, a.p_device);
       }
@@ -81,7 +83,7 @@
         const acc = demo.guests.filter(g => g.status === 'accepted');
         return { title: demo.title, expected: acc.reduce((s, g) => s + 1 + g.companions, 0), inside: demo.guests.filter(g => g.checked_in_at).reduce((s, g) => s + 1 + g.companions, 0) };
       }
-      case 'admin_list': auth(a); return { title: demo.title, scan_key: demo.scan_key, guests: demo.guests.map(pub) };
+      case 'admin_list': auth(a); return { title: demo.title, scan_key: demo.scan_key, change_deadline: demo.change_deadline, guests: demo.guests.map(pub) };
       case 'admin_add': auth(a); {
         let n = 0;
         (a.p_guests || []).forEach(x => { if (!String(x.name || '').trim()) return; n++; demo.guests.push({ id: 'g' + rnd(4), name: String(x.name).trim(), phone: String(x.phone || '').trim() || null, max: Math.max(0, Math.min(20, +x.max || 0)), side: x.side === 'groom' ? 'groom' : 'bride', token: rnd(9), secret: rnd(16), status: 'pending', companions: 0, responded_at: null, sent_at: null, checked_in_at: null }); });
@@ -89,6 +91,7 @@
       }
       case 'admin_update': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) { g.name = a.p_name; g.phone = a.p_phone || null; g.max = Math.max(0, Math.min(20, +a.p_max || 0)); g.companions = Math.min(g.companions, g.max); } return null; }
       case 'admin_set_side': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.side = a.p_side === 'groom' ? 'groom' : 'bride'; return null; }
+      case 'admin_set_deadline': auth(a); demo.change_deadline = a.p_deadline || null; return null;
       case 'admin_delete': auth(a); demo.guests = demo.guests.filter(x => x.id !== a.p_id); return null;
       case 'admin_mark_sent': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.sent_at = now(); return null; }
       case 'admin_unlock': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.device = null; return null; }
