@@ -45,6 +45,11 @@ label{display:block;font-size:15px;color:var(--muted);margin:6px 0 3px}
 .wa{background:#25D366;border-color:#25D366}
 #login{max-width:360px;margin:12vh auto 0;text-align:center}
 .hide{display:none!important}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px;margin:0 0 12px}
+.sides button{border:0;background:transparent;border-radius:999px;padding:9px 6px;cursor:pointer;font-size:18px;color:var(--olive)}
+.sides button.on{background:var(--pink);color:#fff}
+.sides small{font-size:14px;opacity:.85}
+.sidelbl{color:var(--pink)}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--olive);color:#fff;padding:8px 18px;border-radius:999px;opacity:0;transition:.3s;pointer-events:none;z-index:50}
 .toast.show{opacity:1}
 .demo{background:#FFF4D6;border:1px dashed var(--wait);color:#7a5d1d;border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:15px}
@@ -77,10 +82,15 @@ dialog::backdrop{background:rgba(0,0,0,.3)}
       </div>
     </div>
 
+    <div class="sides" id="sides">
+      <button data-s="bride">أهل العروس <small id="cnt-bride"></small></button>
+      <button data-s="groom">أهل المعرس <small id="cnt-groom"></small></button>
+    </div>
+
     <div class="stats" id="stats"></div>
 
     <details class="card" id="addBox">
-      <summary>+ إضافة مدعوين</summary>
+      <summary>+ إضافة مدعوين — <span class="sidelbl"></span></summary>
       <div class="row" style="margin-top:8px">
         <div style="flex:2 1 180px"><label>الاسم</label><input id="aName" placeholder="مثال: نورة الدوسري"></div>
         <div style="flex:2 1 150px"><label>الجوال</label><input id="aPhone" inputmode="tel" placeholder="05xxxxxxxx"></div>
@@ -98,7 +108,7 @@ dialog::backdrop{background:rgba(0,0,0,.3)}
     </details>
 
     <details class="card">
-      <summary>نص رسالة الواتساب</summary>
+      <summary>نص رسالة الواتساب — <span class="sidelbl"></span></summary>
       <textarea id="msg" rows="6" style="margin-top:8px"></textarea>
       <p class="hint">استخدم {الاسم} و {الرابط} وتنحط تلقائياً لكل مدعوة.</p>
       <button class="btn ghost sm" id="msgReset">رجّع النص الأصلي</button>
@@ -126,6 +136,7 @@ dialog::backdrop{background:rgba(0,0,0,.3)}
   <label>الاسم</label><input id="eName">
   <label>الجوال</label><input id="ePhone" inputmode="tel">
   <label>المرافقين المسموح</label><input id="eMax" type="number" min="0" max="20">
+  <label>الدعوة</label><select id="eSide"><option value="bride">أهل العروس</option><option value="groom">أهل المعرس</option></select>
   <div class="row" style="margin-top:12px">
     <button class="btn" id="eSave">حفظ</button>
     <button class="btn ghost" id="eCancel">إلغاء</button>
@@ -141,10 +152,17 @@ dialog::backdrop{background:rgba(0,0,0,.3)}
 const $=id=>document.getElementById(id), AR=Zaffa.AR, SLUG=Zaffa.slug;
 let PW=sessionStorage.getItem('zf_pw')||'', DATA=null, FILTER='all';
 const DEFAULT_MSG='السلام عليكم ورحمة الله\n{الاسم}\nيسعدنا دعوتكم لحضور حفل زفاف مدى و خالد\nيوم الثلاثاء ٢٩ ديسمبر ٢٠٢٦م في قاعات جوهرة ديلان – الرياض\n\nالدعوة شخصية، نرجو تأكيد الحضور أو الاعتذار من الرابط:\n{الرابط}';
-const MSG_KEY='zf_msg_'+SLUG;
-$('msg').value=localStorage.getItem(MSG_KEY)||DEFAULT_MSG;
-$('msg').oninput=()=>localStorage.setItem(MSG_KEY,$('msg').value);
-$('msgReset').onclick=()=>{$('msg').value=DEFAULT_MSG;localStorage.removeItem(MSG_KEY)};
+const SIDES={bride:'أهل العروس',groom:'أهل المعرس'};
+let SIDE=localStorage.getItem('zf_side_'+SLUG)==='groom'?'groom':'bride';
+const sideOf=g=>g.side==='groom'?'groom':'bride';
+const MSG_KEY=()=>'zf_msg_'+SLUG+(SIDE==='groom'?'_groom':'');
+const loadMsg=()=>{$('msg').value=localStorage.getItem(MSG_KEY())||DEFAULT_MSG};
+loadMsg();
+$('msg').oninput=()=>localStorage.setItem(MSG_KEY(),$('msg').value);
+$('msgReset').onclick=()=>{$('msg').value=DEFAULT_MSG;localStorage.removeItem(MSG_KEY())};
+function setSide(s){SIDE=s;localStorage.setItem('zf_side_'+SLUG,s);loadMsg();[...$('sides').children].forEach(b=>b.classList.toggle('on',b.dataset.s===s));document.querySelectorAll('.sidelbl').forEach(e=>e.textContent=SIDES[s]);if(DATA)render()}
+$('sides').onclick=e=>{const b=e.target.closest('button');if(b)setSide(b.dataset.s)};
+setSide(SIDE);
 if(Zaffa.DEMO)$('demoNote').classList.remove('hide');
 
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),1800)}
@@ -168,7 +186,8 @@ async function refresh(){try{DATA=await call('admin_list');render()}catch(e){}}
 /* render */
 function render(){
   $('title').textContent=DATA.title;
-  const G=DATA.guests, acc=G.filter(g=>g.status==='accepted');
+  ['bride','groom'].forEach(s=>$('cnt-'+s).textContent='('+AR(DATA.guests.filter(g=>sideOf(g)===s).length)+')');
+  const G=DATA.guests.filter(g=>sideOf(g)===SIDE), acc=G.filter(g=>g.status==='accepted');
   const ppl=acc.reduce((s,g)=>s+1+g.companions,0), inside=G.filter(g=>g.checked_in_at).reduce((s,g)=>s+1+g.companions,0);
   const st=[[G.length,'المدعوين'],[G.filter(g=>g.sent_at).length,'أُرسلت'],[AR(acc.length)+' <small style="font-size:14px">('+AR(ppl)+' شخص)</small>','قبلوا'],[G.filter(g=>g.status==='declined').length,'اعتذروا'],[inside,'حضروا']];
   $('stats').innerHTML=st.map(([n,l])=>`<div class="stat"><b>${typeof n==='number'?AR(n):n}</b><span>${l}</span></div>`).join('');
@@ -197,7 +216,7 @@ function render(){
         ${g.status!=='pending'||g.checked_in_at?'<button class="btn ghost sm" data-a="reset">تصفير</button>':''}
         <button class="btn ghost sm" data-a="del" style="color:var(--pink);border-color:var(--pink2)">حذف</button>
       </div>
-    </div>`).join(''):'<p class="hint" style="text-align:center">ما فيه أحد هنا</p>';
+    </div>`).join(''):'<p class="hint" style="text-align:center">ما فيه أحد هنا في '+SIDES[SIDE]+'</p>';
 }
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 $('q').oninput=render;
@@ -215,7 +234,7 @@ $('list').onclick=async e=>{
   }
   if(a==='copy')copy(linkOf(g));
   if(a==='unlock'&&confirm('فك قفل دعوة '+g.name+'؟ أول جوال يفتحها بعدين يصير هو صاحبها.')){await call('admin_unlock',{p_id:g.id});refresh();toast('انفك القفل')}
-  if(a==='edit'){editing=g;$('eName').value=g.name;$('ePhone').value=g.phone||'';$('eMax').value=g.max;$('edDlg').showModal()}
+  if(a==='edit'){editing=g;$('eName').value=g.name;$('ePhone').value=g.phone||'';$('eMax').value=g.max;$('eSide').value=sideOf(g);$('edDlg').showModal()}
   if(a==='reset'&&confirm('ترجع دعوة '+g.name+' بدون رد وبدون حضور؟')){await call('admin_reset',{p_id:g.id});refresh()}
   if(a==='del'&&confirm('حذف '+g.name+'؟ رابطها بيتعطل.')){await call('admin_delete',{p_id:g.id});refresh()}
 };
@@ -223,13 +242,14 @@ $('eCancel').onclick=()=>$('edDlg').close();
 $('eSave').onclick=async()=>{
   if(!$('eName').value.trim())return;
   await call('admin_update',{p_id:editing.id,p_name:$('eName').value.trim(),p_phone:$('ePhone').value.trim(),p_max:+$('eMax').value||0});
+  if($('eSide').value!==sideOf(editing))await call('admin_set_side',{p_id:editing.id,p_side:$('eSide').value});
   $('edDlg').close();refresh();toast('تم الحفظ');
 };
 
 /* adding */
 async function addMany(rows){
-  rows=rows.filter(r=>r.name);if(!rows.length){toast('ما فيه أسماء');return}
-  try{const n=await call('admin_add',{p_guests:rows});toast('تمت إضافة '+AR(n));refresh()}catch(e){alert('ما انضافوا: '+e.message)}
+  rows=rows.filter(r=>r.name).map(r=>Object.assign(r,{side:SIDE}));if(!rows.length){toast('ما فيه أسماء');return}
+  try{const n=await call('admin_add',{p_guests:rows});toast('تمت إضافة '+AR(n)+' إلى '+SIDES[SIDE]);refresh()}catch(e){alert('ما انضافوا: '+e.message)}
 }
 const toEn=s=>String(s==null?'':s).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 $('addOne').onclick=async()=>{await addMany([{name:$('aName').value.trim(),phone:toEn($('aPhone').value).trim(),max:+toEn($('aMax').value)||0}]);$('aName').value='';$('aPhone').value='';$('aMax').value=0;$('aName').focus()};
@@ -243,7 +263,7 @@ $('xls').onchange=async e=>{
   const aoa=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
   let rows=aoa.map(r=>({name:String(r[0]).trim(),phone:toEn(r[1]).replace(/\s/g,''),max:+toEn(r[2])||0})).filter(r=>r.name);
   if(rows.length&&/اسم|name/i.test(rows[0].name))rows.shift();
-  if(confirm('بنضيف '+AR(rows.length)+' مدعوة من الملف، متأكد؟'))await addMany(rows);
+  if(confirm('بنضيف '+AR(rows.length)+' مدعوة من الملف إلى '+SIDES[SIDE]+'، متأكد؟'))await addMany(rows);
   e.target.value='';
 };
 $('copyScan').onclick=()=>copy(base()+'scan.html?k='+DATA.scan_key);

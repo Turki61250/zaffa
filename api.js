@@ -42,15 +42,15 @@
     guests: [
       { name: 'نورة الدوسري', phone: '0551234567', max: 2 },
       { name: 'هيا القحطاني', phone: '0569876543', max: 1 },
-      { name: 'ريم الشمري', phone: '0503334444', max: 0 }
-    ].map((g, i) => ({ id: 'g' + i, ...g, token: i === 0 ? 'demo' : rnd(9), secret: rnd(16), status: 'pending', companions: 0, responded_at: null, sent_at: null, checked_in_at: null }))
+      { name: 'ريم الشمري', phone: '0503334444', max: 0, side: 'groom' }
+    ].map((g, i) => ({ id: 'g' + i, side: 'bride', ...g, token: i === 0 ? 'demo' : rnd(9), secret: rnd(16), status: 'pending', companions: 0, responded_at: null, sent_at: null, checked_in_at: null }))
   };
-  const pub = g => ({ id: g.id, name: g.name, phone: g.phone, max: g.max, token: g.token, status: g.status, companions: g.companions, responded_at: g.responded_at, sent_at: g.sent_at, checked_in_at: g.checked_in_at, locked: !!g.device });
+  const pub = g => ({ id: g.id, name: g.name, phone: g.phone, max: g.max, token: g.token, status: g.status, companions: g.companions, responded_at: g.responded_at, sent_at: g.sent_at, checked_in_at: g.checked_in_at, locked: !!g.device, side: g.side || 'bride' });
   const auth = p => { if (p.p_password !== demo.password) throw new Error('unauthorized'); };
   const inv = (g, d) => {
     if (!g) return null;
-    if (g.device && g.device !== d) return { name: g.name, locked: true };
-    return { name: g.name, max: g.max, status: g.status, companions: g.companions, checked_in: !!g.checked_in_at, locked: false, secret: g.status === 'accepted' && g.device === d ? g.secret : null };
+    if (g.device && g.device !== d) return { name: g.name, locked: true, side: g.side };
+    return { name: g.name, side: g.side, max: g.max, status: g.status, companions: g.companions, checked_in: !!g.checked_in_at, locked: false, secret: g.status === 'accepted' && g.device === d ? g.secret : null };
   };
   const byToken = t => demo.guests.find(g => g.token === t);
   const now = () => new Date().toISOString();
@@ -84,10 +84,11 @@
       case 'admin_list': auth(a); return { title: demo.title, scan_key: demo.scan_key, guests: demo.guests.map(pub) };
       case 'admin_add': auth(a); {
         let n = 0;
-        (a.p_guests || []).forEach(x => { if (!String(x.name || '').trim()) return; n++; demo.guests.push({ id: 'g' + rnd(4), name: String(x.name).trim(), phone: String(x.phone || '').trim() || null, max: Math.max(0, Math.min(20, +x.max || 0)), token: rnd(9), secret: rnd(16), status: 'pending', companions: 0, responded_at: null, sent_at: null, checked_in_at: null }); });
+        (a.p_guests || []).forEach(x => { if (!String(x.name || '').trim()) return; n++; demo.guests.push({ id: 'g' + rnd(4), name: String(x.name).trim(), phone: String(x.phone || '').trim() || null, max: Math.max(0, Math.min(20, +x.max || 0)), side: x.side === 'groom' ? 'groom' : 'bride', token: rnd(9), secret: rnd(16), status: 'pending', companions: 0, responded_at: null, sent_at: null, checked_in_at: null }); });
         return n;
       }
       case 'admin_update': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) { g.name = a.p_name; g.phone = a.p_phone || null; g.max = Math.max(0, Math.min(20, +a.p_max || 0)); g.companions = Math.min(g.companions, g.max); } return null; }
+      case 'admin_set_side': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.side = a.p_side === 'groom' ? 'groom' : 'bride'; return null; }
       case 'admin_delete': auth(a); demo.guests = demo.guests.filter(x => x.id !== a.p_id); return null;
       case 'admin_mark_sent': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.sent_at = now(); return null; }
       case 'admin_unlock': auth(a); { const g = demo.guests.find(x => x.id === a.p_id); if (g) g.device = null; return null; }
